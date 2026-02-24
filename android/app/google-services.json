@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "180576440681",
+    "project_id": "beeandbig",
+    "storage_bucket": "beeandbig.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:180576440681:android:f590b12b866e65fa3bedf8",
+        "android_client_info": {
+          "package_name": "com.beeandbig.beeandbig"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNUXAlmtiBt0_O8u626027KJielTNb3Oo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
