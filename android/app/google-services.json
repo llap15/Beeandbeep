@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "180576440681",
-    "project_id": "beeandbig",
-    "storage_bucket": "beeandbig.firebasestorage.app"
+    "project_number": "711298465225",
+    "project_id": "beeandvip-e9c01",
+    "storage_bucket": "beeandvip-e9c01.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:180576440681:android:f590b12b866e65fa3bedf8",
+        "mobilesdk_app_id": "1:711298465225:android:a67d14311309939e5efc18",
         "android_client_info": {
           "package_name": "com.beeandbig.beeandbig"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "711298465225-p762rulahhcj3eg96pibqjtn7osb8k0n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCNUXAlmtiBt0_O8u626027KJielTNb3Oo"
+          "current_key": "AIzaSyCeKbuGFUAQuZSSdGcRFLLhp3mzbrVE1PQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "711298465225-p762rulahhcj3eg96pibqjtn7osb8k0n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -95,7 +95,7 @@ BEGIN
             VALUE "InternalName", "beeandbig" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.beeandbig. All rights reserved." "\0"
             VALUE "OriginalFilename", "beeandbig.exe" "\0"
-            VALUE "ProductName", "beeandbig" "\0"
+            VALUE "ProductName", "beeandvip" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
