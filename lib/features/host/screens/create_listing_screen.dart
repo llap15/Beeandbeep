@@ -1,60 +1,154 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../listing/screens/listing_detail_screen.dart';
 
-class CreateListingScreen extends StatefulWidget {
+class CreateListingScreen extends ConsumerStatefulWidget {
   const CreateListingScreen({super.key});
 
   @override
-  State<CreateListingScreen> createState() => _CreateListingScreenState();
+  ConsumerState<CreateListingScreen> createState() =>
+      _CreateListingScreenState();
 }
 
-class _CreateListingScreenState extends State<CreateListingScreen> {
-  int _currentStep = 0;
-  final int _totalSteps = 5;
-
-  // Form data
-  String _propertyType = '';
-  String _listingType = '';
+class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _descController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
   final _locationController = TextEditingController();
-  int _guests = 1;
+
+  String _selectedCategory = 'beach';
+  int _guests = 2;
   int _bedrooms = 1;
   int _beds = 1;
   int _bathrooms = 1;
-  double _price = 50;
-  final List<String> _selectedAmenities = [];
 
-  final List<Map<String, String>> _propertyTypes = [
-    {'id': 'house', 'label': 'House', 'emoji': '🏠'},
-    {'id': 'apartment', 'label': 'Apartment', 'emoji': '🏢'},
-    {'id': 'cabin', 'label': 'Cabin', 'emoji': '🏡'},
-    {'id': 'villa', 'label': 'Villa', 'emoji': '🏖️'},
-    {'id': 'hotel', 'label': 'Hotel', 'emoji': '🏨'},
-    {'id': 'treehouse', 'label': 'Treehouse', 'emoji': '🌳'},
+  List<File> _selectedImages = [];
+  List<String> _uploadedImageUrls = [];
+  bool _isLoading = false;
+
+  double _lat = -12.0464;
+  double _lng = -77.0428;
+  final MapController _mapController = MapController();
+
+  final List<String> _categories = [
+    'beach', 'mountain', 'cabin', 'city', 'countryside', 'pool'
   ];
 
-  final List<Map<String, String>> _amenities = [
-    {'id': 'wifi', 'label': 'Wifi', 'emoji': '📶'},
-    {'id': 'kitchen', 'label': 'Kitchen', 'emoji': '🍳'},
-    {'id': 'parking', 'label': 'Parking', 'emoji': '🚗'},
-    {'id': 'pool', 'label': 'Pool', 'emoji': '🏊'},
-    {'id': 'ac', 'label': 'Air conditioning', 'emoji': '❄️'},
-    {'id': 'tv', 'label': 'TV', 'emoji': '📺'},
-    {'id': 'washer', 'label': 'Washer', 'emoji': '🧺'},
-    {'id': 'gym', 'label': 'Gym', 'emoji': '💪'},
-    {'id': 'breakfast', 'label': 'Breakfast', 'emoji': '🥐'},
-    {'id': 'pets', 'label': 'Pet friendly', 'emoji': '🐾'},
-  ];
+  static const String _cloudName = 'ddq30xbuj';
+  static const String _uploadPreset = 'beeandvip_preset';
 
   @override
   void dispose() {
     _titleController.dispose();
-    _descController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage(imageQuality: 80);
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _selectedImages = pickedFiles.map((f) => File(f.path)).toList();
+      });
+    }
+  }
+
+  Future<String?> _uploadToCloudinary(File imageFile) async {
+    final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudName/image/upload');
+    final request = http.MultipartRequest('POST', url)
+      ..fields['upload_preset'] = _uploadPreset
+      ..files.add(await http.MultipartFile.fromPath(
+        'file',
+        imageFile.path,
+        contentType: MediaType('image', 'jpeg'),
+      ));
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      final body = await response.stream.bytesToString();
+      final json = jsonDecode(body);
+      return json['secure_url'] as String;
+    }
+    return null;
+  }
+
+  Future<void> _publishListing() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one photo')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      for (final image in _selectedImages) {
+        final url = await _uploadToCloudinary(image);
+        if (url != null) _uploadedImageUrls.add(url);
+      }
+
+      if (_uploadedImageUrls.isEmpty) throw Exception('Failed to upload images');
+
+      final user = FirebaseAuth.instance.currentUser;
+      await FirebaseFirestore.instance.collection('listings').add({
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'price': double.parse(_priceController.text.trim()),
+        'location': _locationController.text.trim(),
+        'category': _selectedCategory,
+        'guests': _guests,
+        'bedrooms': _bedrooms,
+        'beds': _beds,
+        'bathrooms': _bathrooms,
+        'imageUrl': _uploadedImageUrls.first,
+        'images': _uploadedImageUrls,
+        'latitude': _lat,
+        'longitude': _lng,
+        'hostId': user?.uid ?? '',
+        'hostName': user?.displayName ?? 'Host',
+        'rating': 0.0,
+        'reviewCount': 0,
+        'isFeatured': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Listing published successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go('/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -62,373 +156,351 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => context.pop(),
         ),
-        title: Text('Step ${_currentStep + 1} of $_totalSteps'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: (_currentStep + 1) / _totalSteps,
-            backgroundColor: AppColors.lightGrey,
-            valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.primary),
-          ),
+        title: const Text(
+          'Create listing',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _buildStep(),
-            ),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _publishListing,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Publish',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
           ),
-          _buildBottomBar(),
         ],
       ),
-    );
-  }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
 
-  Widget _buildStep() {
-    switch (_currentStep) {
-      case 0:
-        return _buildPropertyTypeStep();
-      case 1:
-        return _buildLocationStep();
-      case 2:
-        return _buildRoomsStep();
-      case 3:
-        return _buildAmenitiesStep();
-      case 4:
-        return _buildPriceStep();
-      default:
-        return const SizedBox();
-    }
-  }
-
-  Widget _buildPropertyTypeStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Which of these best describes your place?',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 32),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 1.3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: _propertyTypes.length,
-          itemBuilder: (context, i) {
-            final type = _propertyTypes[i];
-            final isSelected = _propertyType == type['id'];
-            return GestureDetector(
-              onTap: () => setState(() => _propertyType = type['id']!),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected ? AppColors.black : AppColors.lightGrey,
-                    width: isSelected ? 2 : 1,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: isSelected
-                      ? AppColors.black.withOpacity(0.05)
-                      : Colors.white,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(type['emoji']!,
-                        style: const TextStyle(fontSize: 32)),
-                    Text(type['label']!,
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ],
-                ),
+              // FOTOS
+              Text('Photos', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: _pickImages,
+                child: _selectedImages.isEmpty
+                    ? Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: AppColors.ultraLightGrey,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.lightGrey),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_photo_alternate_outlined,
+                                  size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('Tap to add photos',
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == _selectedImages.length) {
+                              return GestureDetector(
+                                onTap: _pickImages,
+                                child: Container(
+                                  width: 150,
+                                  margin: const EdgeInsets.only(left: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.ultraLightGrey,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: AppColors.lightGrey),
+                                  ),
+                                  child: const Icon(Icons.add,
+                                      color: Colors.grey, size: 32),
+                                ),
+                              );
+                            }
+                            return Container(
+                              width: 200,
+                              margin: const EdgeInsets.only(right: 8),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(
+                                  _selectedImages[index],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
               ),
-            );
-          },
-        ),
-      ],
-    );
-  }
 
-  Widget _buildLocationStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Where is your place located?',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text('Your address is only shared with guests after they book.',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 32),
-        TextFormField(
-          controller: _locationController,
-          decoration: const InputDecoration(
-            labelText: 'Street address',
-            prefixIcon: Icon(Icons.location_on_outlined),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          decoration: const InputDecoration(labelText: 'City'),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          decoration: const InputDecoration(labelText: 'Country'),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          height: 200,
-          decoration: BoxDecoration(
-            color: AppColors.ultraLightGrey,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.map_outlined, size: 48, color: AppColors.grey),
-                SizedBox(height: 8),
-                Text('Map preview',
-                    style: TextStyle(color: AppColors.grey)),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+              const SizedBox(height: 24),
 
-  Widget _buildRoomsStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Share some basics about your place',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text('You can add more details later.',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 32),
-        _RoomCounter(
-          label: 'Guests',
-          value: _guests,
-          onDecrement: _guests > 1 ? () => setState(() => _guests--) : null,
-          onIncrement: () => setState(() => _guests++),
-        ),
-        const Divider(height: 40),
-        _RoomCounter(
-          label: 'Bedrooms',
-          value: _bedrooms,
-          onDecrement: _bedrooms > 0 ? () => setState(() => _bedrooms--) : null,
-          onIncrement: () => setState(() => _bedrooms++),
-        ),
-        const Divider(height: 40),
-        _RoomCounter(
-          label: 'Beds',
-          value: _beds,
-          onDecrement: _beds > 1 ? () => setState(() => _beds--) : null,
-          onIncrement: () => setState(() => _beds++),
-        ),
-        const Divider(height: 40),
-        _RoomCounter(
-          label: 'Bathrooms',
-          value: _bathrooms,
-          onDecrement: _bathrooms > 1 ? () => setState(() => _bathrooms--) : null,
-          onIncrement: () => setState(() => _bathrooms++),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAmenitiesStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Tell guests what your place has to offer',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text('You can add more amenities after you publish your listing.',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 32),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _amenities.map((amenity) {
-            final isSelected = _selectedAmenities.contains(amenity['id']);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _selectedAmenities.remove(amenity['id']);
-                  } else {
-                    _selectedAmenities.add(amenity['id']!);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected ? AppColors.black : AppColors.lightGrey,
-                    width: isSelected ? 2 : 1,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: isSelected
-                      ? AppColors.black.withOpacity(0.05)
-                      : Colors.white,
+              // TÍTULO
+              Text('Title', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Beautiful beachfront villa',
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(amenity['emoji']!,
-                        style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 8),
-                    Text(amenity['label']!,
-                        style: Theme.of(context).textTheme.titleSmall),
-                  ],
-                ),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Title is required' : null,
               ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildPriceStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Now, set your price',
-            style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 8),
-        Text('You can change it anytime.',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 48),
-        Center(
-          child: Text(
-            '\$${_price.round()}',
-            style: const TextStyle(
-              fontSize: 72,
-              fontWeight: FontWeight.w800,
-              fontFamily: 'Nunito',
-              color: AppColors.black,
-            ),
-          ),
-        ),
-        const Center(
-          child: Text('per night',
-              style: TextStyle(color: AppColors.grey, fontSize: 16)),
-        ),
-        const SizedBox(height: 32),
-        Slider(
-          value: _price,
-          min: 10,
-          max: 1000,
-          divisions: 99,
-          activeColor: AppColors.primary,
-          onChanged: (v) => setState(() => _price = v),
-        ),
-        const SizedBox(height: 32),
-        TextFormField(
-          decoration: const InputDecoration(
-            labelText: 'Title',
-            hintText: 'Beautiful place in the city center',
-            prefixIcon: Icon(Icons.title),
-          ),
-          controller: _titleController,
-          maxLength: 50,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          decoration: const InputDecoration(
-            labelText: 'Description',
-            hintText: 'Describe what makes your place special...',
-            prefixIcon: Icon(Icons.description_outlined),
-          ),
-          controller: _descController,
-          maxLines: 4,
-          maxLength: 500,
-        ),
-      ],
-    );
-  }
+              const SizedBox(height: 20),
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border:
-            Border(top: BorderSide(color: AppColors.divider, width: 1)),
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            if (_currentStep > 0)
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => setState(() => _currentStep--),
-                  child: const Text('Back'),
+              // DESCRIPCIÓN
+              Text('Description',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Describe your place...',
                 ),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Description is required' : null,
               ),
-            if (_currentStep > 0) const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: ElevatedButton(
-                onPressed: () {
-                  if (_currentStep < _totalSteps - 1) {
-                    setState(() => _currentStep++);
-                  } else {
-                    // Submit listing
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('🎉 Listing published!'),
-                        content: const Text(
-                            'Your listing is now live on BeeAndBig.'),
-                        actions: [
-                          ElevatedButton(
-                            onPressed: () {
-                              context.pop();
-                              context.go('/host-dashboard');
-                            },
-                            child: const Text('View dashboard'),
+
+              const SizedBox(height: 20),
+
+              // UBICACIÓN
+              Text('Location', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Lima, Peru',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Location is required' : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Tap on the map to pin your location',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.grey,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  height: 220,
+                  child: FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: LatLng(_lat, _lng),
+                      initialZoom: 13,
+                      onTap: (tapPosition, point) {
+                        setState(() {
+                          _lat = point.latitude;
+                          _lng = point.longitude;
+                        });
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.beeandvip',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(_lat, _lng),
+                            width: 50,
+                            height: 50,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 3),
+                                boxShadow: const [
+                                  BoxShadow(
+                                      color: Colors.black26, blurRadius: 6),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.home,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    );
-                  }
-                },
-                child: Text(_currentStep < _totalSteps - 1
-                    ? 'Next'
-                    : 'Publish listing'),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 20),
+
+              // PRECIO
+              Text('Price per night',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  prefixText: '\$ ',
+                  hintText: '0',
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Price is required';
+                  if (double.tryParse(v) == null) return 'Enter a valid price';
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // CATEGORÍA
+              Text('Category', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.map((cat) {
+                  final isSelected = _selectedCategory == cat;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.ultraLightGrey,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.lightGrey,
+                        ),
+                      ),
+                      child: Text(
+                        cat[0].toUpperCase() + cat.substring(1),
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 20),
+
+              // CAPACIDAD
+              Text('Capacity', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              _CounterRow(
+                label: 'Guests',
+                value: _guests,
+                onDecrement:
+                    _guests > 1 ? () => setState(() => _guests--) : null,
+                onIncrement: () => setState(() => _guests++),
+              ),
+              _CounterRow(
+                label: 'Bedrooms',
+                value: _bedrooms,
+                onDecrement:
+                    _bedrooms > 1 ? () => setState(() => _bedrooms--) : null,
+                onIncrement: () => setState(() => _bedrooms++),
+              ),
+              _CounterRow(
+                label: 'Beds',
+                value: _beds,
+                onDecrement:
+                    _beds > 1 ? () => setState(() => _beds--) : null,
+                onIncrement: () => setState(() => _beds++),
+              ),
+              _CounterRow(
+                label: 'Bathrooms',
+                value: _bathrooms,
+                onDecrement:
+                    _bathrooms > 1 ? () => setState(() => _bathrooms--) : null,
+                onIncrement: () => setState(() => _bathrooms++),
+              ),
+
+              const SizedBox(height: 40),
+
+              // BOTÓN PUBLICAR
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _publishListing,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 56),
+                  ),
+                  child: _isLoading
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Publishing...'),
+                          ],
+                        )
+                      : const Text(
+                          'Publish listing',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _RoomCounter extends StatelessWidget {
+class _CounterRow extends StatelessWidget {
   final String label;
   final int value;
   final VoidCallback? onDecrement;
   final VoidCallback onIncrement;
 
-  const _RoomCounter({
+  const _CounterRow({
     required this.label,
     required this.value,
     required this.onDecrement,
@@ -437,55 +509,64 @@ class _RoomCounter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child:
-                Text(label, style: Theme.of(context).textTheme.titleMedium)),
-        Row(
-          children: [
-            IconButton(
-              onPressed: onDecrement,
-              icon: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: onDecrement != null
-                        ? AppColors.grey
-                        : AppColors.lightGrey,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onDecrement,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: onDecrement != null
+                          ? Colors.grey
+                          : Colors.grey.shade300,
+                    ),
                   ),
-                ),
-                child: Icon(Icons.remove,
+                  child: Icon(
+                    Icons.remove,
                     size: 18,
                     color: onDecrement != null
-                        ? AppColors.black
-                        : AppColors.lightGrey),
-              ),
-            ),
-            SizedBox(
-              width: 40,
-              child: Text('$value',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge),
-            ),
-            IconButton(
-              onPressed: onIncrement,
-              icon: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.grey),
+                        ? Colors.black
+                        : Colors.grey.shade300,
+                  ),
                 ),
-                child: const Icon(Icons.add,
-                    size: 18, color: AppColors.black),
               ),
-            ),
-          ],
-        ),
-      ],
+              SizedBox(
+                width: 40,
+                child: Text(
+                  '$value',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              GestureDetector(
+                onTap: onIncrement,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  child: const Icon(Icons.add, size: 18),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_theme.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -45,7 +46,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _navigate() async {
     await Future.delayed(const Duration(milliseconds: 2500));
     if (!mounted) return;
-    context.go('/home');
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      context.go('/home');
+    } else {
+      context.go('/login');
+    }
   }
 
   @override
@@ -85,12 +92,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'BeeAndBig',
+                      'BeeAndVip',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 36,
                         fontWeight: FontWeight.w800,
-                        fontFamily: 'Nunito',
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -101,7 +107,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
-                        fontFamily: 'Nunito',
                       ),
                     ),
                   ],

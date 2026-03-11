@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -19,13 +20,11 @@ import '../../features/host/screens/host_dashboard_screen.dart';
 import '../../features/messages/screens/messages_screen.dart';
 import '../../features/messages/screens/chat_screen.dart';
 
-// Route names as constants
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String register = '/register';
-  static const String main = '/main';
   static const String home = '/home';
   static const String search = '/search';
   static const String listingDetail = '/listing/:id';
@@ -44,6 +43,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/';
+
+      // Si no está logueado y trata de ir a una ruta protegida
+      if (!isLoggedIn && !isAuthRoute) {
+        return '/login';
+      }
+
+      // Si ya está logueado y trata de ir al login o register
+      if (isLoggedIn && (state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register')) {
+        return '/home';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: AppRoutes.splash,

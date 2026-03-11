@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/repositories/auth_repository.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -25,22 +28,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_acceptedTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please accept the terms and conditions')),
-      );
-      return;
-    }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() => _isLoading = false);
-      context.go('/home');
+
+    try {
+      final user = await ref.read(authRepositoryProvider).registerWithEmail(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      if (user != null) {
+        // Actualizar el nombre del usuario en Firebase
+        await user.updateDisplayName(
+          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+        );
+      }
+
+      if (mounted) context.go('/home');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -49,11 +69,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Create account'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -61,43 +82,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Welcome to BeeAndBig 🐝',
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 8),
-              Text('Create your account to start exploring',
-                  style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: 32),
+              // Header
+              Center(
+                child: Column(
+                  children: [
+                    const Text('🐝', style: TextStyle(fontSize: 48)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Create your account',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Join BeeAndVip today',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: AppColors.grey,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
 
+              const SizedBox(height: 40),
+
+              // Form
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
+                    // First & Last Name
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _firstNameController,
+                            textCapitalization: TextCapitalization.words,
                             decoration: const InputDecoration(
                               labelText: 'First name',
+                              prefixIcon: Icon(Icons.person_outline),
                             ),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Required';
+                              return null;
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
                             controller: _lastNameController,
+                            textCapitalization: TextCapitalization.words,
                             decoration: const InputDecoration(
                               labelText: 'Last name',
                             ),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Required';
+                              return null;
+                            },
                           ),
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 16),
+
+                    // Email
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -111,7 +162,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
+
+                    // Password
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -128,88 +182,120 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 8)
-                          return 'Password must be at least 8 characters';
+                        if (v.length < 6) return 'Minimum 6 characters';
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
 
-                    // Password strength indicator
-                    _PasswordStrength(
-                        password: _passwordController.text),
+                    // Confirm Password
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscureConfirmPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          onPressed: () => setState(() =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Required';
+                        if (v != _passwordController.text)
+                          return 'Passwords do not match';
+                        return null;
+                      },
+                    ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 32),
 
-                    // Terms
+                    // Register Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _register,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Create account'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Divider
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Checkbox(
-                          value: _acceptedTerms,
-                          activeColor: AppColors.primary,
-                          onChanged: (v) =>
-                              setState(() => _acceptedTerms = v ?? false),
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text('or',
+                              style: Theme.of(context).textTheme.bodySmall),
                         ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: RichText(
-                              text: TextSpan(
-                                style: Theme.of(context).textTheme.bodySmall,
-                                children: const [
-                                  TextSpan(text: 'I agree to the '),
-                                  TextSpan(
-                                    text: 'Terms of Service',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                  TextSpan(text: ' and '),
-                                  TextSpan(
-                                    text: 'Privacy Policy',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        const Expanded(child: Divider()),
                       ],
                     ),
 
                     const SizedBox(height: 24),
 
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Create account'),
+                    // Google
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await ref
+                                .read(authRepositoryProvider)
+                                .signInWithGoogle();
+                            if (mounted) context.go('/home');
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                        icon: const Text('G',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700)),
+                        label: const Text('Continue with Google'),
+                      ),
                     ),
+                  ],
+                ),
+              ),
 
-                    const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Already have an account? ',
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        TextButton(
-                          onPressed: () => context.go('/login'),
-                          child: const Text('Log in'),
-                        ),
-                      ],
+              // Already have account
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Already have an account? ',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    TextButton(
+                      onPressed: () => context.pop(),
+                      child: const Text('Log in'),
                     ),
                   ],
                 ),
@@ -218,69 +304,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PasswordStrength extends StatelessWidget {
-  final String password;
-  const _PasswordStrength({required this.password});
-
-  int get _strength {
-    if (password.isEmpty) return 0;
-    int s = 0;
-    if (password.length >= 8) s++;
-    if (password.contains(RegExp(r'[A-Z]'))) s++;
-    if (password.contains(RegExp(r'[0-9]'))) s++;
-    if (password.contains(RegExp(r'[!@#\$%^&*]'))) s++;
-    return s;
-  }
-
-  Color get _color {
-    switch (_strength) {
-      case 1: return Colors.red;
-      case 2: return Colors.orange;
-      case 3: return Colors.yellow.shade700;
-      case 4: return Colors.green;
-      default: return AppColors.lightGrey;
-    }
-  }
-
-  String get _label {
-    switch (_strength) {
-      case 1: return 'Weak';
-      case 2: return 'Fair';
-      case 3: return 'Good';
-      case 4: return 'Strong';
-      default: return '';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (password.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: List.generate(4, (i) {
-            return Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                height: 4,
-                decoration: BoxDecoration(
-                  color: i < _strength ? _color : AppColors.lightGrey,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 4),
-        Text(_label,
-            style: TextStyle(
-                fontSize: 12, color: _color, fontWeight: FontWeight.w600)),
-      ],
     );
   }
 }

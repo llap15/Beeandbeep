@@ -1,148 +1,57 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/listing_model.dart';
-import '../services/api_service.dart';
 
 final listingRepositoryProvider = Provider<ListingRepository>((ref) {
-  return ListingRepository(apiService: ref.read(apiServiceProvider));
+  return ListingRepository();
 });
 
-class SearchFilters {
-  final String? location;
-  final DateTime? checkIn;
-  final DateTime? checkOut;
-  final int? guests;
-  final double? minPrice;
-  final double? maxPrice;
-  final List<PropertyType>? propertyTypes;
-  final List<AmenityType>? amenities;
-  final int? minBedrooms;
-  final int? minBeds;
-  final int? minBathrooms;
-  final bool? instantBook;
-  final bool? superhostOnly;
-  final double? minRating;
-  final double? lat;
-  final double? lng;
-  final double? radius;
-  final int page;
-  final int pageSize;
+// Provider que carga todos los listings
+final listingsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return ref.read(listingRepositoryProvider).getListings();
+});
 
-  const SearchFilters({
-    this.location,
-    this.checkIn,
-    this.checkOut,
-    this.guests,
-    this.minPrice,
-    this.maxPrice,
-    this.propertyTypes,
-    this.amenities,
-    this.minBedrooms,
-    this.minBeds,
-    this.minBathrooms,
-    this.instantBook,
-    this.superhostOnly,
-    this.minRating,
-    this.lat,
-    this.lng,
-    this.radius,
-    this.page = 1,
-    this.pageSize = 20,
-  });
-
-  Map<String, dynamic> toQueryParams() {
-    final params = <String, dynamic>{};
-    if (location != null) params['location'] = location;
-    if (checkIn != null) params['check_in'] = checkIn!.toIso8601String();
-    if (checkOut != null) params['check_out'] = checkOut!.toIso8601String();
-    if (guests != null) params['guests'] = guests;
-    if (minPrice != null) params['min_price'] = minPrice;
-    if (maxPrice != null) params['max_price'] = maxPrice;
-    if (propertyTypes != null) {
-      params['property_types'] = propertyTypes!.map((e) => e.name).join(',');
-    }
-    if (amenities != null) {
-      params['amenities'] = amenities!.map((e) => e.name).join(',');
-    }
-    if (minBedrooms != null) params['min_bedrooms'] = minBedrooms;
-    if (minBeds != null) params['min_beds'] = minBeds;
-    if (minBathrooms != null) params['min_bathrooms'] = minBathrooms;
-    if (instantBook != null) params['instant_book'] = instantBook;
-    if (superhostOnly != null) params['superhost_only'] = superhostOnly;
-    if (minRating != null) params['min_rating'] = minRating;
-    if (lat != null) params['lat'] = lat;
-    if (lng != null) params['lng'] = lng;
-    if (radius != null) params['radius'] = radius;
-    params['page'] = page;
-    params['page_size'] = pageSize;
-    return params;
+// Provider que filtra por categoría
+final filteredListingsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, category) async {
+  if (category == 'all') {
+    return ref.read(listingRepositoryProvider).getListings();
   }
-}
+  return ref.read(listingRepositoryProvider).getListingsByCategory(category);
+});
+
+// Provider para obtener un listing por ID
+final listingByIdProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, id) async {
+  return ref.read(listingRepositoryProvider).getListingById(id);
+});
 
 class ListingRepository {
-  final ApiService _apiService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  ListingRepository({required ApiService apiService})
-      : _apiService = apiService;
-
-  Future<List<ListingModel>> searchListings(SearchFilters filters) {
-    return _apiService.searchListings(filters.toQueryParams());
+  Future<List<Map<String, dynamic>>> getListings() async {
+    final snapshot = await _firestore.collection('listings').get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    }).toList();
   }
 
-  Future<ListingModel> getListingById(String id) {
-    return _apiService.getListingById(id);
+  Future<List<Map<String, dynamic>>> getListingsByCategory(String category) async {
+    final snapshot = await _firestore
+        .collection('listings')
+        .where('category', isEqualTo: category)
+        .get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    }).toList();
   }
 
-  Future<List<ListingModel>> getFeaturedListings() {
-    return _apiService.getFeaturedListings();
-  }
-
-  Future<List<ListingModel>> getNearbyListings({
-    required double lat,
-    required double lng,
-    double radius = 20,
-  }) {
-    return _apiService.searchListings({
-      'lat': lat,
-      'lng': lng,
-      'radius': radius,
-    });
-  }
-
-  Future<List<ListingModel>> getWishlist(String token) {
-    return _apiService.getWishlist(token: token);
-  }
-
-  Future<void> toggleWishlist(String token, String listingId) {
-    return _apiService.toggleWishlist(token: token, listingId: listingId);
-  }
-
-  Future<ListingModel> createListing({
-    required String token,
-    required Map<String, dynamic> data,
-  }) {
-    return _apiService.createListing(token: token, data: data);
-  }
-
-  Future<ListingModel> updateListing({
-    required String token,
-    required String listingId,
-    required Map<String, dynamic> data,
-  }) {
-    return _apiService.updateListing(
-      token: token,
-      listingId: listingId,
-      data: data,
-    );
-  }
-
-  Future<void> deleteListing({
-    required String token,
-    required String listingId,
-  }) {
-    return _apiService.deleteListing(token: token, listingId: listingId);
-  }
-
-  Future<List<ListingModel>> getHostListings(String token) {
-    return _apiService.getHostListings(token: token);
+  Future<Map<String, dynamic>?> getListingById(String id) async {
+    final doc = await _firestore.collection('listings').doc(id).get();
+    if (!doc.exists) return null;
+    final data = doc.data()!;
+    data['id'] = doc.id;
+    return data;
   }
 }

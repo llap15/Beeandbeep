@@ -1,32 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/repositories/listing_repository.dart';
+import '../../../data/repositories/booking_repository.dart';
 
-class BookingScreen extends StatefulWidget {
+class BookingScreen extends ConsumerStatefulWidget {
   final String listingId;
 
   const BookingScreen({super.key, required this.listingId});
 
   @override
-  State<BookingScreen> createState() => _BookingScreenState();
+  ConsumerState<BookingScreen> createState() => _BookingScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
+class _BookingScreenState extends ConsumerState<BookingScreen> {
   DateTime? _checkIn;
   DateTime? _checkOut;
   int _guests = 1;
   final CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
+  bool _isLoading = false;
 
-  double get _basePrice => 85.0;
+  final double _cleaningFee = 30.0;
+
   int get _nights => _checkIn != null && _checkOut != null
       ? _checkOut!.difference(_checkIn!).inDays
       : 0;
-  double get _nightlyTotal => _basePrice * _nights;
-  double get _cleaningFee => 30.0;
-  double get _serviceFee => (_nightlyTotal + _cleaningFee) * 0.12;
-  double get _total => _nightlyTotal + _cleaningFee + _serviceFee;
+
+  double nightlyTotal(double price) => price * _nights;
+  double serviceFee(double price) => (nightlyTotal(price) + _cleaningFee) * 0.12;
+  double total(double price) => nightlyTotal(price) + _cleaningFee + serviceFee(price);
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     setState(() {
@@ -42,237 +47,301 @@ class _BookingScreenState extends State<BookingScreen> {
     });
   }
 
+  Future<void> _reserve(Map<String, dynamic> listing) async {
+    if (_checkIn == null || _checkOut == null) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final price = (listing['price'] as num).toDouble();
+      final bookingId = await ref.read(bookingRepositoryProvider).createBooking(
+            listingId: widget.listingId,
+            listingTitle: listing['title'] ?? '',
+            listingImage: listing['imageUrl'] ?? '',
+            hostId: listing['hostId'] ?? '',
+            location: listing['location'] ?? '',
+            checkIn: _checkIn!,
+            checkOut: _checkOut!,
+            guests: _guests,
+            pricePerNight: price,
+            cleaningFee: _cleaningFee,
+            serviceFee: serviceFee(price),
+            total: total(price),
+          );
+
+      if (mounted) {
+        context.push('/booking-confirmation/$bookingId');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Select dates'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
-        ),
+    final listingAsync = ref.watch(listingByIdProvider(widget.listingId));
+
+    return listingAsync.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date header
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _DateBox(
-                            label: 'CHECK-IN',
-                            value: _checkIn != null
-                                ? '${_checkIn!.month}/${_checkIn!.day}/${_checkIn!.year}'
-                                : 'Add date',
-                            isSelected: _checkIn != null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DateBox(
-                            label: 'CHECK-OUT',
-                            value: _checkOut != null
-                                ? '${_checkOut!.month}/${_checkOut!.day}/${_checkOut!.year}'
-                                : 'Add date',
-                            isSelected: _checkOut != null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text('Error: $e')),
+      ),
+      data: (listing) {
+        if (listing == null) {
+          return const Scaffold(
+            body: Center(child: Text('Listing not found')),
+          );
+        }
 
-                  // Calendar
-                  TableCalendar(
-                    firstDay: DateTime.now(),
-                    lastDay:
-                        DateTime.now().add(const Duration(days: 365)),
-                    focusedDay: _focusedDay,
-                    calendarFormat: _calendarFormat,
-                    rangeStartDay: _checkIn,
-                    rangeEndDay: _checkOut,
-                    rangeSelectionMode: RangeSelectionMode.toggledOn,
-                    onDaySelected: _onDaySelected,
-                    onPageChanged: (focusedDay) {
-                      _focusedDay = focusedDay;
-                    },
-                    calendarStyle: CalendarStyle(
-                      rangeHighlightColor:
-                          AppColors.primary.withOpacity(0.15),
-                      rangeStartDecoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      rangeEndDecoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      todayDecoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      selectedDecoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    headerStyle: HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: true,
-                      titleTextStyle:
-                          Theme.of(context).textTheme.titleLarge!,
-                    ),
-                  ),
+        final price = (listing['price'] as num).toDouble();
+        final maxGuests = (listing['guests'] as num? ?? 1).toInt();
 
-                  const Divider(),
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: const Text('Select dates'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => context.pop(),
+            ),
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
 
-                  // Guests
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Guests',
-                                  style: Theme.of(context).textTheme.titleLarge),
-                              Text('6 guests maximum',
-                                  style: Theme.of(context).textTheme.bodySmall),
-                            ],
-                          ),
-                        ),
-                        Row(
+                      // Fechas seleccionadas
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
                           children: [
-                            IconButton(
-                              onPressed: _guests > 1
-                                  ? () => setState(() => _guests--)
-                                  : null,
-                              icon: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _guests > 1
-                                        ? AppColors.grey
-                                        : AppColors.lightGrey,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.remove,
-                                  size: 16,
-                                  color: _guests > 1
-                                      ? AppColors.black
-                                      : AppColors.lightGrey,
-                                ),
+                            Expanded(
+                              child: _DateBox(
+                                label: 'CHECK-IN',
+                                value: _checkIn != null
+                                    ? '${_checkIn!.day}/${_checkIn!.month}/${_checkIn!.year}'
+                                    : 'Add date',
+                                isSelected: _checkIn != null,
                               ),
                             ),
-                            SizedBox(
-                              width: 32,
-                              child: Text(
-                                '$_guests',
-                                textAlign: TextAlign.center,
-                                style:
-                                    Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: _guests < 6
-                                  ? () => setState(() => _guests++)
-                                  : null,
-                              icon: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _guests < 6
-                                        ? AppColors.grey
-                                        : AppColors.lightGrey,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.add,
-                                  size: 16,
-                                  color: _guests < 6
-                                      ? AppColors.black
-                                      : AppColors.lightGrey,
-                                ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _DateBox(
+                                label: 'CHECK-OUT',
+                                value: _checkOut != null
+                                    ? '${_checkOut!.day}/${_checkOut!.month}/${_checkOut!.year}'
+                                    : 'Add date',
+                                isSelected: _checkOut != null,
                               ),
                             ),
                           ],
                         ),
+                      ),
+
+                      // Calendario
+                      TableCalendar(
+                        firstDay: DateTime.now(),
+                        lastDay: DateTime.now().add(const Duration(days: 365)),
+                        focusedDay: _focusedDay,
+                        calendarFormat: _calendarFormat,
+                        rangeStartDay: _checkIn,
+                        rangeEndDay: _checkOut,
+                        rangeSelectionMode: RangeSelectionMode.toggledOn,
+                        onDaySelected: _onDaySelected,
+                        onPageChanged: (focusedDay) {
+                          _focusedDay = focusedDay;
+                        },
+                        calendarStyle: CalendarStyle(
+                          rangeHighlightColor:
+                              AppColors.primary.withOpacity(0.15),
+                          rangeStartDecoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          rangeEndDecoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.3),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          titleTextStyle:
+                              Theme.of(context).textTheme.titleLarge!,
+                        ),
+                      ),
+
+                      const Divider(),
+
+                      // Huéspedes
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Guests',
+                                      style: Theme.of(context).textTheme.titleLarge),
+                                  Text('$maxGuests guests maximum',
+                                      style: Theme.of(context).textTheme.bodySmall),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: _guests > 1
+                                      ? () => setState(() => _guests--)
+                                      : null,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _guests > 1
+                                            ? Colors.grey
+                                            : Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 16,
+                                      color: _guests > 1
+                                          ? Colors.black
+                                          : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 32,
+                                  child: Text(
+                                    '$_guests',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _guests < maxGuests
+                                      ? () => setState(() => _guests++)
+                                      : null,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _guests < maxGuests
+                                            ? Colors.grey
+                                            : Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 16,
+                                      color: _guests < maxGuests
+                                          ? Colors.black
+                                          : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Desglose de precio
+                      if (_nights > 0) ...[
+                        const Divider(),
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Price details',
+                                  style: Theme.of(context).textTheme.titleLarge),
+                              const SizedBox(height: 16),
+                              _PriceRow(
+                                label: '\$${price.toStringAsFixed(0)} × $_nights nights',
+                                value: '\$${nightlyTotal(price).toStringAsFixed(2)}',
+                              ),
+                              _PriceRow(
+                                label: 'Cleaning fee',
+                                value: '\$${_cleaningFee.toStringAsFixed(2)}',
+                              ),
+                              _PriceRow(
+                                label: 'BeeAndVip service fee',
+                                value: '\$${serviceFee(price).toStringAsFixed(2)}',
+                              ),
+                              const Divider(height: 32),
+                              _PriceRow(
+                                label: 'Total (USD)',
+                                value: '\$${total(price).toStringAsFixed(2)}',
+                                isTotal: true,
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
+
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Botón reservar
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: AppColors.divider, width: 1),
+                  ),
+                ),
+                child: SafeArea(
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: (_checkIn != null && _checkOut != null && !_isLoading)
+                          ? () => _reserve(listing)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 56),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Reserve', style: TextStyle(fontSize: 16)),
                     ),
                   ),
-
-                  // Price breakdown (only when dates selected)
-                  if (_nights > 0) ...[
-                    const Divider(),
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Price details',
-                              style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: 16),
-                          _PriceRow(
-                            label: '\$${_basePrice.toStringAsFixed(0)} × $_nights nights',
-                            value: '\$${_nightlyTotal.toStringAsFixed(2)}',
-                          ),
-                          _PriceRow(
-                            label: 'Cleaning fee',
-                            value: '\$${_cleaningFee.toStringAsFixed(2)}',
-                          ),
-                          _PriceRow(
-                            label: 'BeeAndBig service fee',
-                            value: '\$${_serviceFee.toStringAsFixed(2)}',
-                          ),
-                          const Divider(height: 32),
-                          _PriceRow(
-                            label: 'Total (USD)',
-                            value: '\$${_total.toStringAsFixed(2)}',
-                            isTotal: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 100),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-
-          // Reserve Button
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(color: AppColors.divider, width: 1),
-              ),
-            ),
-            child: SafeArea(
-              child: ElevatedButton(
-                onPressed: (_checkIn != null && _checkOut != null)
-                    ? () => context.push('/booking-confirmation/${widget.listingId}')
-                    : null,
-                child: const Text('Reserve'),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -294,7 +363,7 @@ class _DateBox extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isSelected ? AppColors.black : AppColors.lightGrey,
+          color: isSelected ? Colors.black : Colors.grey.shade300,
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
@@ -308,7 +377,7 @@ class _DateBox extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
-              color: AppColors.grey,
+              color: Colors.grey,
             ),
           ),
           const SizedBox(height: 4),
@@ -317,7 +386,7 @@ class _DateBox extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isSelected ? AppColors.black : AppColors.grey,
+              color: isSelected ? Colors.black : Colors.grey,
             ),
           ),
         ],

@@ -38,7 +38,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -54,7 +57,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -80,7 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const Text('🐝', style: TextStyle(fontSize: 48)),
                     const SizedBox(height: 12),
                     Text(
-                      'BeeAndBig',
+                      'BeeAndVip',
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w800,
@@ -139,23 +145,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => context.push('/forgot-password'),
+                        onPressed: () {},
                         child: const Text('Forgot password?'),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _signIn,
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Log in'),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _signIn,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Log in'),
+                      ),
                     ),
                   ],
                 ),
@@ -178,17 +187,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Social Login
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : _signInWithGoogle,
-                icon: const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                label: const Text('Continue with Google'),
+              // Google Login
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  icon: const Text('G',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
+                  label: const Text('Continue with Google'),
+                ),
               ),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _isLoading ? null : () {},
-                icon: const Icon(Icons.apple, size: 22),
-                label: const Text('Continue with Apple'),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : () {},
+                  icon: const Icon(Icons.apple, size: 22),
+                  label: const Text('Continue with Apple'),
+                ),
               ),
 
               const SizedBox(height: 40),

@@ -1,177 +1,217 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/app_theme.dart';
 
-class BookingConfirmationScreen extends StatelessWidget {
+class BookingConfirmationScreen extends ConsumerWidget {
   final String bookingId;
+
   const BookingConfirmationScreen({super.key, required this.bookingId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Spacer(),
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('bookings')
+            .doc(bookingId)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              // Success animation
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text('🎉', style: TextStyle(fontSize: 56)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text('Booking confirmed!',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Text(
-                'Your stay has been booked successfully. Check your email for details.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Booking not found'));
+          }
 
-              const SizedBox(height: 40),
+          final booking = snapshot.data!.data() as Map<String, dynamic>;
+          final checkIn = (booking['checkIn'] as Timestamp).toDate();
+          final checkOut = (booking['checkOut'] as Timestamp).toDate();
 
-              // Booking details card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.ultraLightGrey,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    _DetailRow(
-                      icon: Icons.confirmation_number_outlined,
-                      label: 'Booking ID',
-                      value: '#BNB-${bookingId.toUpperCase()}',
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+
+                  // Icono de éxito
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE8F5E9),
+                      shape: BoxShape.circle,
                     ),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      icon: Icons.home_outlined,
-                      label: 'Property',
-                      value: 'Beachfront Villa',
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 60,
                     ),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Check-in',
-                      value: 'Nov 15, 2025 · 3:00 PM',
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Booking confirmed!',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your trip is booked. Have a great stay!',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.grey,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // Detalles de la reserva
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.ultraLightGrey,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Check-out',
-                      value: 'Nov 18, 2025 · 11:00 AM',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking['listingTitle'] ?? '',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          booking['location'] ?? '',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.grey,
+                              ),
+                        ),
+                        const Divider(height: 24),
+                        _DetailRow(
+                          label: 'Check-in',
+                          value:
+                              '${checkIn.day}/${checkIn.month}/${checkIn.year}',
+                        ),
+                        const SizedBox(height: 8),
+                        _DetailRow(
+                          label: 'Check-out',
+                          value:
+                              '${checkOut.day}/${checkOut.month}/${checkOut.year}',
+                        ),
+                        const SizedBox(height: 8),
+                        _DetailRow(
+                          label: 'Guests',
+                          value: '${booking['guests']}',
+                        ),
+                        const SizedBox(height: 8),
+                        _DetailRow(
+                          label: 'Nights',
+                          value: '${booking['nights']}',
+                        ),
+                        const Divider(height: 24),
+                        _DetailRow(
+                          label: 'Total paid',
+                          value:
+                              '\$${(booking['total'] as num).toStringAsFixed(2)}',
+                          isTotal: true,
+                        ),
+                      ],
                     ),
-                    const Divider(height: 24),
-                    _DetailRow(
-                      icon: Icons.attach_money,
-                      label: 'Total paid',
-                      value: '\$255.00',
-                      valueStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Booking ID
+                  Text(
+                    'Booking ID: $bookingId',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.grey,
+                        ),
+                  ),
+
+                  const Spacer(),
+
+                  // Botón volver a home
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/home'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 56),
                       ),
+                      child: const Text('Back to home',
+                          style: TextStyle(fontSize: 16)),
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              const SizedBox(height: 24),
+                  const SizedBox(height: 12),
 
-              // Host info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.lightGrey),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.ultraLightGrey,
-                      child: Text('👨‍💼', style: TextStyle(fontSize: 22)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Your host: Carlos M.',
-                              style: Theme.of(context).textTheme.titleSmall),
-                          Text('Usually responds within 1 hour',
-                              style: Theme.of(context).textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => context.push('/chat/0'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/profile'),
                       style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 36)),
-                      child: const Text('Message'),
+                        minimumSize: const Size(double.infinity, 56),
+                      ),
+                      child: const Text('View my trips',
+                          style: TextStyle(fontSize: 16)),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              const Spacer(),
-
-              // Buttons
-              ElevatedButton(
-                onPressed: () => context.go('/home'),
-                child: const Text('Back to home'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () {},
-                child: const Text('View booking details'),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _DetailRow extends StatelessWidget {
-  final IconData icon;
   final String label;
   final String value;
-  final TextStyle? valueStyle;
+  final bool isTotal;
 
   const _DetailRow({
-    required this.icon,
     required this.label,
     required this.value,
-    this.valueStyle,
+    this.isTotal = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Icon(icon, size: 18, color: AppColors.grey),
-        const SizedBox(width: 10),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-        const Spacer(),
+        Text(
+          label,
+          style: isTotal
+              ? Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)
+              : Theme.of(context).textTheme.bodyMedium,
+        ),
         Text(
           value,
-          style: valueStyle ??
-              Theme.of(context)
+          style: isTotal
+              ? Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)
+              : Theme.of(context)
                   .textTheme
                   .bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
