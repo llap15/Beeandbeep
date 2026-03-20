@@ -24,12 +24,7 @@ class MainScreen extends StatelessWidget {
       body: child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: AppColors.divider,
-              width: 1,
-            ),
-          ),
+          border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: selectedIndex,
@@ -53,22 +48,22 @@ class MainScreen extends StatelessWidget {
             BottomNavigationBarItem(
               icon: Icon(Icons.search_outlined),
               activeIcon: Icon(Icons.search),
-              label: 'Explore',
+              label: 'Explorar',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.favorite_outline),
               activeIcon: Icon(Icons.favorite),
-              label: 'Wishlists',
+              label: 'Favoritos',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_outline),
               activeIcon: Icon(Icons.chat_bubble),
-              label: 'Messages',
+              label: 'Mensajes',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
-              label: 'Profile',
+              label: 'Perfil',
             ),
           ],
         ),

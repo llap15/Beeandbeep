@@ -45,9 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ];
         },
         body: listingsAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -57,8 +55,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Text('Error: $error'),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => ref.refresh(filteredListingsProvider(selectedCategory)),
-                  child: const Text('Retry'),
+                  onPressed: () =>
+                      ref.refresh(filteredListingsProvider(selectedCategory)),
+                  child: const Text('Reintentar'),
                 ),
               ],
             ),
@@ -71,7 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Text('🏠', style: TextStyle(fontSize: 48)),
                     SizedBox(height: 16),
-                    Text('No listings found'),
+                    Text('No se encontraron alojamientos'),
                   ],
                 ),
               );
@@ -146,7 +145,7 @@ class _ListingCardState extends State<_ListingCard> {
                     ),
                   ),
                 ),
-                // Botón wishlist
+                // Botón favorito
                 Positioned(
                   top: 12,
                   right: 12,
@@ -157,7 +156,7 @@ class _ListingCardState extends State<_ListingCard> {
                       color: _isWishlisted ? AppColors.primary : Colors.white,
                       size: 26,
                       shadows: const [
-                        Shadow(color: Colors.black26, blurRadius: 4)
+                        Shadow(color: Colors.black26, blurRadius: 4),
                       ],
                     ),
                   ),
@@ -167,7 +166,7 @@ class _ListingCardState extends State<_ListingCard> {
 
             const SizedBox(height: 10),
 
-            // Info
+            // Información
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -176,7 +175,7 @@ class _ListingCardState extends State<_ListingCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        listing['title'] ?? 'No title',
+                        listing['title'] ?? 'Sin título',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -187,10 +186,7 @@ class _ListingCardState extends State<_ListingCard> {
                       const SizedBox(height: 2),
                       Text(
                         listing['location'] ?? '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.grey,
-                        ),
+                        style: TextStyle(fontSize: 14, color: AppColors.grey),
                       ),
                       const SizedBox(height: 4),
                       RichText(
@@ -205,7 +201,7 @@ class _ListingCardState extends State<_ListingCard> {
                               ),
                             ),
                             const TextSpan(
-                              text: ' / night',
+                              text: ' / noche',
                               style: TextStyle(
                                 fontWeight: FontWeight.w400,
                                 fontSize: 14,
@@ -217,7 +213,7 @@ class _ListingCardState extends State<_ListingCard> {
                     ],
                   ),
                 ),
-                // Rating
+                // Calificación
                 Row(
                   children: [
                     const Icon(Icons.star, size: 14, color: Colors.black),

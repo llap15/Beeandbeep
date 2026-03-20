@@ -14,18 +14,18 @@ class CategoryItem {
 }
 
 const categories = [
-  CategoryItem(id: 'all', label: 'All', emoji: '🌍'),
-  CategoryItem(id: 'beach', label: 'Beach', emoji: '🏖️'),
-  CategoryItem(id: 'mountain', label: 'Mountain', emoji: '⛰️'),
-  CategoryItem(id: 'cabin', label: 'Cabin', emoji: '🏡'),
-  CategoryItem(id: 'pool', label: 'Amazing pools', emoji: '🏊'),
-  CategoryItem(id: 'farm', label: 'Farms', emoji: '🌾'),
-  CategoryItem(id: 'treehouse', label: 'Treehouses', emoji: '🌳'),
-  CategoryItem(id: 'castle', label: 'Castles', emoji: '🏰'),
+  CategoryItem(id: 'all', label: 'Todos', emoji: '🌍'),
+  CategoryItem(id: 'beach', label: 'Playa', emoji: '🏖️'),
+  CategoryItem(id: 'mountain', label: 'Montaña', emoji: '⛰️'),
+  CategoryItem(id: 'cabin', label: 'Cabaña', emoji: '🏡'),
+  CategoryItem(id: 'pool', label: 'Piscinas', emoji: '🏊'),
+  CategoryItem(id: 'farm', label: 'Granjas', emoji: '🌾'),
+  CategoryItem(id: 'treehouse', label: 'Casa árbol', emoji: '🌳'),
+  CategoryItem(id: 'castle', label: 'Castillos', emoji: '🏰'),
   CategoryItem(id: 'camping', label: 'Camping', emoji: '⛺'),
-  CategoryItem(id: 'city', label: 'City', emoji: '🌆'),
-  CategoryItem(id: 'island', label: 'Islands', emoji: '🏝️'),
-  CategoryItem(id: 'luxury', label: 'Luxury', emoji: '✨'),
+  CategoryItem(id: 'city', label: 'Ciudad', emoji: '🌆'),
+  CategoryItem(id: 'island', label: 'Islas', emoji: '🏝️'),
+  CategoryItem(id: 'luxury', label: 'Lujo', emoji: '✨'),
 ];
 
 class CategoryFilterWidget extends StatelessWidget {

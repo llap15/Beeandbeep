@@ -21,20 +21,23 @@ class OnboardingPage {
 const pages = [
   OnboardingPage(
     emoji: '🏠',
-    title: 'Find your perfect place',
-    subtitle: 'Discover unique homes, apartments, and experiences around the world',
+    title: 'Encuentra tu lugar ideal',
+    subtitle:
+        'Descubre casas, apartamentos y experiencias únicas alrededor del mundo',
     color: AppColors.primary,
   ),
   OnboardingPage(
     emoji: '🗺️',
-    title: 'Explore anywhere',
-    subtitle: 'Search by location, dates, and guests to find exactly what you need',
+    title: 'Explora a donde quieras',
+    subtitle:
+        'Busca por ubicación, fechas y huéspedes para encontrar exactamente lo que necesitas',
     color: AppColors.secondary,
   ),
   OnboardingPage(
     emoji: '🐝',
-    title: 'Book with confidence',
-    subtitle: 'Secure payments, verified hosts, and 24/7 support on every stay',
+    title: 'Reserva con confianza',
+    subtitle:
+        'Pagos seguros, anfitriones verificados y soporte 24/7 en cada estadía',
     color: AppColors.beeYellow,
   ),
 ];
@@ -115,7 +118,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             },
           ),
 
-          // Bottom controls
+          // Controles inferiores
           Positioned(
             bottom: 0,
             left: 0,
@@ -125,7 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: SafeArea(
                 child: Column(
                   children: [
-                    // Dots
+                    // Puntos indicadores
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(pages.length, (i) {
@@ -136,7 +139,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           height: 8,
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(
-                                _currentPage == i ? 1 : 0.4),
+                              _currentPage == i ? 1 : 0.4,
+                            ),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         );
@@ -144,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Button
+                    // Botón
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -168,8 +172,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         child: Text(
                           _currentPage < pages.length - 1
-                              ? 'Next'
-                              : 'Get Started',
+                              ? 'Siguiente'
+                              : 'Comenzar',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -181,12 +185,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Skip
+                    // Omitir
                     if (_currentPage < pages.length - 1)
                       TextButton(
                         onPressed: _finish,
                         child: Text(
-                          'Skip',
+                          'Omitir',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.7),
                             fontFamily: 'Nunito',

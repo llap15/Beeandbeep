@@ -37,13 +37,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final user = await ref.read(authRepositoryProvider).registerWithEmail(
+      final user = await ref
+          .read(authRepositoryProvider)
+          .registerWithEmail(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
 
       if (user != null) {
-        // Actualizar el nombre del usuario en Firebase
         await user.updateDisplayName(
           '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
         );
@@ -82,24 +83,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Encabezado
               Center(
                 child: Column(
                   children: [
                     const Text('🐝', style: TextStyle(fontSize: 48)),
                     const SizedBox(height: 12),
                     Text(
-                      'Create your account',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                      'Crea tu cuenta',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Join BeeAndVip today',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.grey,
-                          ),
+                      'Únete a BeeAndVip hoy',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: AppColors.grey),
                     ),
                   ],
                 ),
@@ -107,12 +107,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
               const SizedBox(height: 40),
 
-              // Form
+              // Formulario
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    // First & Last Name
+                    // Nombre y Apellido
                     Row(
                       children: [
                         Expanded(
@@ -120,11 +120,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             controller: _firstNameController,
                             textCapitalization: TextCapitalization.words,
                             decoration: const InputDecoration(
-                              labelText: 'First name',
+                              labelText: 'Nombre',
                               prefixIcon: Icon(Icons.person_outline),
                             ),
                             validator: (v) {
-                              if (v == null || v.isEmpty) return 'Required';
+                              if (v == null || v.isEmpty) return 'Requerido';
                               return null;
                             },
                           ),
@@ -135,10 +135,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             controller: _lastNameController,
                             textCapitalization: TextCapitalization.words,
                             decoration: const InputDecoration(
-                              labelText: 'Last name',
+                              labelText: 'Apellido',
                             ),
                             validator: (v) {
-                              if (v == null || v.isEmpty) return 'Required';
+                              if (v == null || v.isEmpty) return 'Requerido';
                               return null;
                             },
                           ),
@@ -148,74 +148,82 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Email
+                    // Correo
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Email address',
+                        labelText: 'Correo electrónico',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Email is required';
-                        if (!v.contains('@')) return 'Enter a valid email';
+                        if (v == null || v.isEmpty)
+                          return 'El correo es requerido';
+                        if (!v.contains('@')) return 'Ingresa un correo válido';
                         return null;
                       },
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Password
+                    // Contraseña
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        labelText: 'Contraseña',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
                           onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 6) return 'Minimum 6 characters';
+                        if (v == null || v.isEmpty)
+                          return 'La contraseña es requerida';
+                        if (v.length < 6) return 'Mínimo 6 caracteres';
                         return null;
                       },
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Confirm Password
+                    // Confirmar contraseña
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
                       decoration: InputDecoration(
-                        labelText: 'Confirm password',
+                        labelText: 'Confirmar contraseña',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscureConfirmPassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
-                          onPressed: () => setState(() =>
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword),
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          ),
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Required';
+                        if (v == null || v.isEmpty) return 'Requerido';
                         if (v != _passwordController.text)
-                          return 'Passwords do not match';
+                          return 'Las contraseñas no coinciden';
                         return null;
                       },
                     ),
 
                     const SizedBox(height: 32),
 
-                    // Register Button
+                    // Botón registrar
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -229,20 +237,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Create account'),
+                            : const Text('Crear cuenta'),
                       ),
                     ),
 
                     const SizedBox(height: 24),
 
-                    // Divider
+                    // Divisor
                     Row(
                       children: [
                         const Expanded(child: Divider()),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text('or',
-                              style: Theme.of(context).textTheme.bodySmall),
+                          child: Text(
+                            'o',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ),
                         const Expanded(child: Divider()),
                       ],
@@ -254,30 +264,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: _isLoading ? null : () async {
-                          setState(() => _isLoading = true);
-                          try {
-                            await ref
-                                .read(authRepositoryProvider)
-                                .signInWithGoogle();
-                            if (mounted) context.go('/home');
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: ${e.toString()}'),
-                                  backgroundColor: AppColors.error,
-                                ),
-                              );
-                            }
-                          } finally {
-                            if (mounted) setState(() => _isLoading = false);
-                          }
-                        },
-                        icon: const Text('G',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w700)),
-                        label: const Text('Continue with Google'),
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                setState(() => _isLoading = true);
+                                try {
+                                  await ref
+                                      .read(authRepositoryProvider)
+                                      .signInWithGoogle();
+                                  if (mounted) context.go('/home');
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: ${e.toString()}'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted)
+                                    setState(() => _isLoading = false);
+                                }
+                              },
+                        icon: const Text(
+                          'G',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        label: const Text('Continuar con Google'),
                       ),
                     ),
                   ],
@@ -286,16 +303,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
               const SizedBox(height: 32),
 
-              // Already have account
+              // Ya tienes cuenta
               Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Already have an account? ',
-                        style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      '¿Ya tienes una cuenta? ',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     TextButton(
                       onPressed: () => context.pop(),
-                      child: const Text('Log in'),
+                      child: const Text('Inicia sesión'),
                     ),
                   ],
                 ),

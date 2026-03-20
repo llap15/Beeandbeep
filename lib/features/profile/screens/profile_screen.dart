@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/auth_repository.dart';
 
@@ -9,39 +10,50 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = FirebaseAuth.instance.currentUser;
+    final nombre = user?.displayName ?? user?.email ?? 'Usuario';
+    final iniciales = nombre.length >= 2
+        ? nombre.substring(0, 2).toUpperCase()
+        : nombre.toUpperCase();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Perfil'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          // User info
+          // Info del usuario
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 36,
                 backgroundColor: AppColors.lightGrey,
-                child: Text('JD',
-                    style: TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.w700)),
+                child: Text(
+                  iniciales,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('John Doe',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    Text('Guest',
-                        style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      nombre,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    Text(
+                      'Huésped',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
@@ -52,26 +64,26 @@ class ProfileScreen extends ConsumerWidget {
           const Divider(),
           const SizedBox(height: 24),
 
-          // Settings sections
-          _SectionTitle(title: 'Settings'),
+          // Configuración
+          _SectionTitle(title: 'Configuración'),
           _SettingsItem(
             icon: Icons.person_outline,
-            title: 'Personal information',
+            title: 'Información personal',
             onTap: () => context.push('/profile/edit'),
           ),
           _SettingsItem(
             icon: Icons.payment_outlined,
-            title: 'Payments & payouts',
+            title: 'Pagos y cobros',
             onTap: () {},
           ),
           _SettingsItem(
             icon: Icons.notifications_outlined,
-            title: 'Notifications',
+            title: 'Notificaciones',
             onTap: () {},
           ),
           _SettingsItem(
             icon: Icons.lock_outline,
-            title: 'Privacy & sharing',
+            title: 'Privacidad y uso compartido',
             onTap: () {},
           ),
 
@@ -79,16 +91,16 @@ class ProfileScreen extends ConsumerWidget {
           const Divider(),
           const SizedBox(height: 24),
 
-          _SectionTitle(title: 'Hosting'),
+          _SectionTitle(title: 'Anfitrión'),
           _SettingsItem(
             icon: Icons.home_outlined,
-            title: 'List your space',
-            subtitle: 'It\'s simple to get started on BeeAndBig',
+            title: 'Publica tu espacio',
+            subtitle: 'Es fácil comenzar en BeeAndVip',
             onTap: () => context.push('/become-host'),
           ),
           _SettingsItem(
             icon: Icons.dashboard_outlined,
-            title: 'Host dashboard',
+            title: 'Panel de anfitrión',
             onTap: () => context.push('/host-dashboard'),
           ),
 
@@ -96,15 +108,15 @@ class ProfileScreen extends ConsumerWidget {
           const Divider(),
           const SizedBox(height: 24),
 
-          _SectionTitle(title: 'Support'),
+          _SectionTitle(title: 'Soporte'),
           _SettingsItem(
             icon: Icons.help_outline,
-            title: 'Help Center',
+            title: 'Centro de ayuda',
             onTap: () {},
           ),
           _SettingsItem(
             icon: Icons.info_outline,
-            title: 'About BeeAndBig',
+            title: 'Acerca de BeeAndVip',
             onTap: () {},
           ),
 
@@ -112,11 +124,11 @@ class ProfileScreen extends ConsumerWidget {
           const Divider(),
           const SizedBox(height: 24),
 
-          // Sign out
+          // Cerrar sesión
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text(
-              'Log out',
+              'Cerrar sesión',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -133,7 +145,7 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 40),
           Center(
             child: Text(
-              'BeeAndBig v1.0.0',
+              'BeeAndVip v1.0.0',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

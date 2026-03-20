@@ -30,7 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authRepositoryProvider).signInWithEmail(
+      await ref
+          .read(authRepositoryProvider)
+          .signInWithEmail(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
@@ -88,13 +90,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Text(
                       'BeeAndVip',
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Welcome back!',
+                      '¡Bienvenido de nuevo!',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ],
@@ -102,7 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 48),
 
-              // Form
+              // Formulario
               Form(
                 key: _formKey,
                 child: Column(
@@ -111,12 +113,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Email address',
+                        labelText: 'Correo electrónico',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Email is required';
-                        if (!v.contains('@')) return 'Enter a valid email';
+                        if (v == null || v.isEmpty)
+                          return 'El correo es requerido';
+                        if (!v.contains('@')) return 'Ingresa un correo válido';
                         return null;
                       },
                     ),
@@ -125,19 +128,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        labelText: 'Contraseña',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
                           onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 6) return 'Password too short';
+                        if (v == null || v.isEmpty)
+                          return 'La contraseña es requerida';
+                        if (v.length < 6) return 'Contraseña muy corta';
                         return null;
                       },
                     ),
@@ -146,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {},
-                        child: const Text('Forgot password?'),
+                        child: const Text('¿Olvidaste tu contraseña?'),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -163,7 +170,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Log in'),
+                            : const Text('Iniciar sesión'),
                       ),
                     ),
                   ],
@@ -172,14 +179,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Divider
+              // Divisor
               Row(
                 children: [
                   const Expanded(child: Divider()),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('or',
-                        style: Theme.of(context).textTheme.bodySmall),
+                    child: Text(
+                      'o',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                   const Expanded(child: Divider()),
                 ],
@@ -187,15 +196,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Google Login
+              // Google
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _signInWithGoogle,
-                  icon: const Text('G',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w700)),
-                  label: const Text('Continue with Google'),
+                  icon: const Text(
+                    'G',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  label: const Text('Continuar con Google'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -204,22 +214,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : () {},
                   icon: const Icon(Icons.apple, size: 22),
-                  label: const Text('Continue with Apple'),
+                  label: const Text('Continuar con Apple'),
                 ),
               ),
 
               const SizedBox(height: 40),
 
-              // Register
+              // Registro
               Center(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Don't have an account? ",
-                        style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      '¿No tienes una cuenta? ',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     TextButton(
                       onPressed: () => context.push('/register'),
-                      child: const Text('Sign up'),
+                      child: const Text('Regístrate'),
                     ),
                   ],
                 ),

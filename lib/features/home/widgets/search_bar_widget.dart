@@ -34,11 +34,11 @@ class SearchBarWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Anywhere',
+                    'Cualquier lugar',
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   Text(
-                    'Any week · Add guests',
+                    'Cualquier semana · Agregar huéspedes',
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
                 ],
@@ -52,11 +52,7 @@ class SearchBarWidget extends StatelessWidget {
                 color: AppColors.ultraLightGrey,
                 borderRadius: BorderRadius.circular(50),
               ),
-              child: const Icon(
-                Icons.tune,
-                size: 18,
-                color: AppColors.black,
-              ),
+              child: const Icon(Icons.tune, size: 18, color: AppColors.black),
             ),
           ],
         ),
